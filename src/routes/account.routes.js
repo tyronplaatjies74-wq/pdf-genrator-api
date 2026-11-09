@@ -3,7 +3,8 @@ import express from 'express';
 import { auth } from '../middleware/auth.middleware.js';
 import { perIpLimit } from '../middleware/rateLimit.middleware.js';
 import { validate, signupSchema, checkoutSchema } from '../middleware/validate.middleware.js';
-import { createKey, findByEmail } from '../services/keys.service.js';
+import { findByEmail, createPendingVerification, verifyTokenAndCreateKey } from '../services/keys.service.js';
+import { sendVerificationEmail } from '../services/email.service.js';
 import { createCheckoutSession, constructEvent, handleEvent } from '../services/billing.service.js';
 import { stripeEnabled } from '../config/env.js';
 import { HttpError } from '../utils/httpError.js';
@@ -16,12 +17,35 @@ export const accountRouter = Router();
 accountRouter.get('/plans', (_req, res) =>
   res.json({ plans: Object.entries(TIERS).map(([id, t]) => ({ id, ...t })) }));
 
-// TODO before launch: verify email ownership (magic link) so keys can't be claimed for other people's addresses.
-accountRouter.post('/signup', perIpLimit(5), validate(signupSchema), (req, res, next) => {
+// Step 1: Request email verification link instead of immediately minting a key
+accountRouter.post('/signup', perIpLimit(5), validate(signupSchema), async (req, res, next) => {
   try {
-    if (findByEmail(req.body.email)) throw new HttpError(409, 'email_exists', 'An account already exists for this email');
-    const { key, tier } = createKey({ email: req.body.email });
-    res.status(201).json({ apiKey: key, tier, note: 'Store this key now; it cannot be shown again.' });
+    if (findByEmail(req.body.email)) {
+      throw new HttpError(409, 'email_exists', 'An account already exists for this email');
+    }
+    const token = createPendingVerification(req.body.email);
+    await sendVerificationEmail(req.body.email, token);
+
+    res.status(200).json({ 
+      message: 'Verification email sent. Please check your inbox to activate your API key.' 
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Step 2: Verify magic link token and finally issue the API key
+accountRouter.get('/verify', (req, res, next) => {
+  try {
+    const { token } = req.query;
+    if (!token) throw new HttpError(400, 'missing_token', 'Verification token is required.');
+
+    const { key, tier } = verifyTokenAndCreateKey(token);
+    res.status(200).json({ 
+      apiKey: key, 
+      tier, 
+      note: 'Store this key now; it cannot be shown again.' 
+    });
   } catch (err) {
     next(err);
   }
