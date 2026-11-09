@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Verify API Key - PDF Generator</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body style="font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background-color: #f9fafb;">
+  <div style="background: white; padding: 32px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); max-width: 500px; width: 100%; text-align: center;">
+    <h2 id="status" style="margin-top: 0; color: #111827;">Verifying your email...</h2>
+    <div id="result" style="margin-top: 16px; color: #4b5563; text-align: left;"></div>
+  </div>
+
+  <script>
+    async function verifyToken() {
+      const params = new URLSearchParams(window.location.search);
+      const token = params.get('token');
+      const statusEl = document.getElementById('status');
+      const resultEl = document.getElementById('result');
+
+      if (!token) {
+        statusEl.textContent = 'Invalid Link';
+        statusEl.style.color = '#dc2626';
+        resultEl.textContent = 'No verification token was provided in the URL.';
+        return;
+      }
+
+      try {
+        const res = await fetch(`/v1/verify?token=${encodeURIComponent(token)}`);
+        const data = await res.json();
+
+        if (!res.ok) {
+          statusEl.textContent = 'Verification Failed';
+          statusEl.style.color = '#dc2626';
+          resultEl.textContent = data.message || 'The verification link may have expired or is invalid.';
+          return;
+        }
+
+        statusEl.textContent = 'Email Verified Successfully!';
+        statusEl.style.color = '#16a34a';
+        resultEl.innerHTML = `
+          <p style="margin-bottom: 8px; font-weight: 500;">Here is your live API key:</p>
+          <div style="background: #f3f4f6; padding: 12px; border-radius: 6px; word-break: break-all; font-family: monospace; font-size: 14px; font-weight: bold; color: #1f2937; user-select: all;">
+            ${data.apiKey}
+          </div>
+          <p style="margin-top: 12px; font-size: 13px; color: #dc2626; font-weight: 500;">
+            ⚠️ ${data.note}
+          </p>
+        `;
+      } catch (err) {
+        statusEl.textContent = 'Error';
+        statusEl.style.color = '#dc2626';
+        resultEl.textContent = 'An unexpected network error occurred. Please try again.';
+      }
+    }
+
+    verifyToken();
+  </script>
+</body>
+</html>
