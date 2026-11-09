@@ -1,0 +1,20 @@
+<style>
+  @page { size: A4 landscape; margin: 0; }
+  .cert { height: 100vh; padding: 14mm; }
+  .frame { height: 100%; border: 6px double {{#if accentColor}}{{accentColor}}{{else}}#b8860b{{/if}}; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 20mm; }
+  .name { font: italic 40pt Georgia, "Times New Roman", serif; margin: 14px 0; border-bottom: 1px solid #9aa5b1; padding: 0 40px 6px; }
+  .sig { display: flex; gap: 80px; margin-top: 44px; }
+  .sig div { border-top: 1px solid #52606d; padding-top: 6px; min-width: 180px; font-size: 10pt; }
+</style>
+<div class="cert"><div class="frame">
+  <div class="muted" style="letter-spacing:.3em;font-size:11pt">CERTIFICATE OF</div>
+  <h1 style="font:700 34pt Georgia,serif;margin:6px 0 18px">{{#if heading}}{{heading}}{{else}}Achievement{{/if}}</h1>
+  <div class="muted">This certificate is proudly presented to</div>
+  <div class="name">{{recipient}}</div>
+  <div style="max-width:640px">{{description}}</div>
+  <div class="muted" style="margin-top:18px">{{date date}}</div>
+  <div class="sig">
+    {{#if issuer}}<div>{{issuer}}</div>{{/if}}
+    {{#if signatory}}<div>{{signatory}}</div>{{/if}}
+  </div>
+</div></div>
