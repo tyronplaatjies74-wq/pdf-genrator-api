@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PDF API: invoices, receipts and certificates from JSON</title>
+<meta name="description" content="Generate pixel-perfect PDFs from JSON or HTML with one API call. Ready-made invoice, receipt and certificate templates.">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<header class="wrap nav">
+  <strong class="logo">PDF API</strong>
+  <nav><a href="#pricing">Pricing</a><a href="#signup" class="btn small">Get API key</a></nav>
+</header>
+
+<main>
+  <section class="wrap hero">
+    <div>
+      <h1>Invoices, receipts and certificates from a single API call.</h1>
+      <p class="lead">Send JSON, get a polished PDF back. No templates to build, no headless Chrome to babysit. Or send your own HTML if you prefer.</p>
+      <p><a href="#signup" class="btn">Get a free API key</a> <span class="muted">100 PDFs/month, no card required</span></p>
+    </div>
+    <pre class="code" aria-label="Example request"><code>curl -X POST <span id="host">https://your-api.com</span>/v1/pdf/generate \
+  -H "X-API-Key: $KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "template": "invoice",
+    "data": {
+      "invoiceNumber": "INV-001",
+      "currency": "USD",
+      "from": {"name": "Acme Co"},
+      "to": {"name": "Jane Doe"},
+      "items": [
+        {"description": "Design work",
+         "quantity": 2, "unitPrice": 150}
+      ]
+    }
+  }' -o invoice.pdf</code></pre>
+  </section>
+
+  <section class="wrap features">
+    <div><h3>Ready-made templates</h3><p>Invoice, receipt and certificate designs. Totals and tax are calculated for you.</p></div>
+    <div><h3>Or bring your own HTML</h3><p>Full modern CSS, print layouts and page breaks, rendered by real Chromium.</p></div>
+    <div><h3>Private by design</h3><p>Documents are never stored. Scripts are disabled and internal network access is blocked.</p></div>
+  </section>
+
+  <section id="pricing" class="wrap">
+    <h2>Simple pricing</h2>
+    <div id="plans" class="plans" aria-live="polite"><p class="muted">Loading plans…</p></div>
+  </section>
+
+  <section id="signup" class="wrap narrow">
+    <h2>Get your free API key</h2>
+    <form id="signup-form">
+      <label for="email">Email</label>
+      <div class="inline">
+        <input id="email" type="email" required autocomplete="email" placeholder="you@company.com">
+        <button class="btn" type="submit">Create key</button>
+      </div>
+    </form>
+    <div id="key-box" class="notice" hidden>
+      <p><strong>Your API key.</strong> Copy it now; it won't be shown again.</p>
+      <div class="inline"><code id="key-value"></code><button id="copy" class="btn small" type="button">Copy</button></div>
+    </div>
+    <p id="signup-msg" class="msg" role="status"></p>
+  </section>
+
+  <section id="upgrade" class="wrap narrow" hidden>
+    <h2>Upgrade to <span id="upgrade-tier"></span></h2>
+    <form id="upgrade-form">
+      <label for="upgrade-key">Your API key</label>
+      <div class="inline">
+        <input id="upgrade-key" type="password" required autocomplete="off" placeholder="pk_live_…">
+        <button class="btn" type="submit">Continue to payment</button>
+      </div>
+    </form>
+    <p id="upgrade-msg" class="msg" role="status"></p>
+  </section>
+</main>
+
+<footer class="wrap muted">
+  <p>© PDF API · <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a></p>
+</footer>
+<script src="/landing.js" defer></script>
+</body>
+</html>
