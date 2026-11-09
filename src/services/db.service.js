@@ -31,6 +31,11 @@ export function db() {
       count INTEGER NOT NULL DEFAULT 0,
       PRIMARY KEY (key_id, period)
     );
+    CREATE TABLE IF NOT EXISTS pending_verifications (
+      token TEXT PRIMARY KEY,
+      email TEXT NOT NULL UNIQUE,
+      expires_at INTEGER NOT NULL
+    );
   `);
   return _db;
 }
