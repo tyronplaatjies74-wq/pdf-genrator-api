@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
 import { db } from './db.service.js';
+import { HttpError } from '../utils/httpError.js';
 
 const hash = (key) => crypto.createHash('sha256').update(key).digest('hex');
 
@@ -18,6 +19,40 @@ export function findByKey(key) {
 
 export function findByEmail(email) {
   return db().prepare('SELECT * FROM api_keys WHERE email = ?').get(email.toLowerCase());
+}
+
+export function createPendingVerification(email) {
+  const token = crypto.randomBytes(32).toString('hex');
+  const expiresAt = Date.now() + 15 * 60 * 1000; // 15-minute expiration
+
+  db()
+    .prepare('INSERT OR REPLACE INTO pending_verifications (token, email, expires_at) VALUES (?, ?, ?)')
+    .run(token, email.toLowerCase(), expiresAt);
+
+  return token;
+}
+
+export function verifyTokenAndCreateKey(token) {
+  const row = db().prepare('SELECT * FROM pending_verifications WHERE token = ?').get(token);
+
+  if (!row) {
+    throw new HttpError(400, 'invalid_token', 'Verification link is invalid.');
+  }
+
+  if (Date.now() > row.expires_at) {
+    db().prepare('DELETE FROM pending_verifications WHERE token = ?').run(token);
+    throw new HttpError(400, 'token_expired', 'Verification link has expired. Please sign up again.');
+  }
+
+  if (findByEmail(row.email)) {
+    db().prepare('DELETE FROM pending_verifications WHERE token = ?').run(token);
+    throw new HttpError(409, 'email_exists', 'An account already exists for this email');
+  }
+
+  const result = createKey({ email: row.email });
+  db().prepare('DELETE FROM pending_verifications WHERE token = ?').run(token);
+
+  return result;
 }
 
 export function setStripeCustomer(id, customerId) {
