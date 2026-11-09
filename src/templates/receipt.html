@@ -1,0 +1,22 @@
+<style>
+  .box { max-width: 460px; margin: 0 auto; }
+  .total td { border-top: 2px solid #1f2933; border-bottom: 0; font-weight: 700; font-size: 13pt; }
+</style>
+<div class="box">
+  <div style="text-align:center;margin-bottom:24px">
+    <h1 style="font-size:20pt">{{merchant.name}}</h1>
+    {{#if merchant.address}}<div class="muted">{{merchant.address}}</div>{{/if}}
+    <div style="margin-top:12px;font-size:9pt;letter-spacing:.1em" class="muted">RECEIPT {{#if receiptNumber}}# {{receiptNumber}}{{/if}}</div>
+    <div class="muted">{{date date}}</div>
+  </div>
+  <table>
+    <tbody>
+    {{#each items}}
+      <tr><td>{{description}}{{#if quantity}} <span class="muted">× {{quantity}}</span>{{/if}}</td><td class="right">{{money amount ../currency}}</td></tr>
+    {{/each}}
+    <tr class="total"><td>Total</td><td class="right">{{money total currency}}</td></tr>
+    </tbody>
+  </table>
+  {{#if paymentMethod}}<p class="muted" style="margin-top:20px">Paid with {{paymentMethod}}</p>{{/if}}
+  <p style="text-align:center;margin-top:32px" class="muted">{{#if footer}}{{footer}}{{else}}Thank you for your business!{{/if}}</p>
+</div>
