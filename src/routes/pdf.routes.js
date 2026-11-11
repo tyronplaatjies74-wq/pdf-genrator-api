@@ -1,43 +1,45 @@
 import { Router } from 'express';
-import { auth } from '../middleware/auth.middleware.js';
-import { perKeyLimit } from '../middleware/rateLimit.middleware.js';
+import { z } from 'zod';
 import { validate } from '../middleware/validate.middleware.js';
-import { TIERS } from '../config/tiers.js';
-import { TEMPLATE_NAMES, render } from '../services/template.service.js';
-import { renderPdf } from '../services/pdf.service.js';
-import { getUsage, increment } from '../services/usage.service.js';
-import { HttpError } from '../utils/httpError.js';
+import { withPage } from '../services/browserPool.service.js';
 
 const router = Router();
-router.use(auth, perKeyLimit);
 
-router.get('/templates', (_req, res) => res.json({ templates: TEMPLATE_NAMES }));
-
-router.get('/usage', (req, res) => {
-  const tier = TIERS[req.client.tier];
-  const used = getUsage(req.client.id);
-  res.json({ tier: req.client.tier, used, limit: tier.monthlyQuota, remaining: Math.max(0, tier.monthlyQuota - used) });
-});
+const generateSchema = z
+  .object({
+    html: z.string().optional(),
+    url: z.string().url('Invalid URL provided').optional(),
+    options: z
+      .object({
+        format: z.string().optional(),
+        landscape: z.boolean().optional(),
+      })
+      .optional(),
+  })
+  .refine((d) => d.html || d.url, { message: 'Provide html or url' });
 
 router.post('/generate', validate(generateSchema), async (req, res, next) => {
   try {
-    const tier = TIERS[req.client.tier];
-    const used = getUsage(req.client.id);
-    if (used >= tier.monthlyQuota) {
-      throw new HttpError(402, 'quota_exceeded', `Monthly quota of ${tier.monthlyQuota} PDFs reached. Upgrade your plan.`);
-    }
+    const { html, url, options = {} } = req.body;
 
-    const { template, data, html, options } = req.body;
-    const source = template ? render(template, data) : html;
-    const pdf = await renderPdf({ html: source, options, watermark: tier.watermark });
+    const pdf = await withPage(async (page) => {
+      if (html) {
+        await page.setContent(html, { waitUntil: 'networkidle0', timeout: 30000 });
+      } else {
+        await page.goto(url, { waitUntil: 'networkidle0', timeout: 30000 });
+      }
+      return page.pdf({
+        format: options.format || 'A4',
+        landscape: options.landscape || false,
+        printBackground: true,
+      });
+    });
 
-    increment(req.client.id); // only successful renders are billed
     res.set({
       'Content-Type': 'application/pdf',
-      'Content-Disposition': 'inline; filename="document.pdf"',
-      'X-Usage-Remaining': String(Math.max(0, tier.monthlyQuota - used - 1)),
+      'Content-Disposition': 'attachment; filename="document.pdf"',
     });
-    res.send(pdf);
+    res.send(Buffer.from(pdf));
   } catch (err) {
     next(err);
   }

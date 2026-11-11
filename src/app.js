@@ -5,6 +5,7 @@ import helmet from 'helmet';
 import healthRoutes from './routes/health.routes.js';
 import pdfRoutes from './routes/pdf.routes.js';
 import { accountRouter, webhookRouter } from './routes/account.routes.js';
+import { auth } from './middleware/auth.middleware.js';
 import { logger } from './utils/logger.js';
 
 export function createApp() {
@@ -18,8 +19,11 @@ export function createApp() {
   app.use('/webhooks', webhookRouter); // raw body, must precede express.json()
 
   app.use(express.json({ limit: '2mb' }));
+  
+  // Mount accountRouter normally so public endpoints like signup remain accessible, 
+  // while securing specific PDF generation routes with auth:
   app.use('/v1', accountRouter);
-  app.use('/v1/pdf', pdfRoutes);
+  app.use('/v1/pdf', auth, pdfRoutes);
 
   app.use((_req, res) => res.status(404).json({ error: 'not_found' }));
 
