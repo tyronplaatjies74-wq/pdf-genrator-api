@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { auth } from '../middleware/auth.middleware.js';
 import { perKeyLimit } from '../middleware/rateLimit.middleware.js';
-import { validate, generateSchema } from '../middleware/validate.middleware.js';
+import { validate } from '../middleware/validate.middleware.js';
 import { TIERS } from '../config/tiers.js';
 import { TEMPLATE_NAMES, render } from '../services/template.service.js';
 import { renderPdf } from '../services/pdf.service.js';
