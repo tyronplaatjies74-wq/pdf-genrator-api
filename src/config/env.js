@@ -8,6 +8,8 @@ export const env = {
   PORT: int(e.PORT, 3000),
   LOG_LEVEL: e.LOG_LEVEL || 'info',
   DATABASE_PATH: e.DATABASE_PATH || './data/app.db',
+  // Public address of this service, used to build links in emails, e.g. https://api.yourdomain.co.za
+  APP_URL: (e.APP_URL || '').replace(/\/+$/, ''),
 
   CHROME_PATH: e.CHROME_PATH || undefined,
   CHROME_NO_SANDBOX: bool(e.CHROME_NO_SANDBOX, false),
@@ -32,6 +34,9 @@ export function validateEnv() {
   const errors = [];
   for (const k of ['PORT', 'BROWSER_POOL_SIZE', 'BROWSER_RECYCLE_AFTER', 'MAX_CONCURRENT_RENDERS', 'RENDER_TIMEOUT_MS', 'QUEUE_TIMEOUT_MS']) {
     if (!Number.isInteger(env[k]) || env[k] <= 0) errors.push(`${k} must be a positive integer`);
+  }
+  if (env.NODE_ENV === 'production' && !env.APP_URL) {
+    errors.push('APP_URL is required in production (it is used in verification emails), e.g. https://api.yourdomain.co.za');
   }
   if (env.STRIPE_SECRET_KEY) {
     if (!env.STRIPE_WEBHOOK_SECRET) errors.push('STRIPE_WEBHOOK_SECRET is required when STRIPE_SECRET_KEY is set');
