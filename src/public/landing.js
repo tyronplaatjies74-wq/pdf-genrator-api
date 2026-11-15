@@ -7,7 +7,6 @@ function el(tag, props = {}, ...kids) {
   return n;
 }
 
-let apiKey = '';
 const fmt = (n) => n.toLocaleString('en-US');
 
 async function loadPlans() {
@@ -64,24 +63,13 @@ $('#signup-form').addEventListener('submit', async (e) => {
     });
     const body = await res.json();
     if (!res.ok) return say('#signup-msg', ERRORS[body.error] || 'Something went wrong. Please try again.', true);
-    apiKey = body.apiKey;
-    $('#key-value').textContent = apiKey;
-    $('#upgrade-key').value = apiKey;
-    $('#key-box').hidden = false;
-    say('#signup-msg', 'Key created. Try the curl example above.');
+    // The key is no longer returned here: it is shown after the person clicks the emailed link.
+    say('#signup-msg', 'Check your email for a verification link (valid for 15 minutes). Your API key appears after you click it.');
+    e.target.reset();
   } catch {
     say('#signup-msg', 'Network error. Please try again.', true);
   } finally {
     btn.disabled = false;
-  }
-});
-
-$('#copy').addEventListener('click', async () => {
-  try {
-    await navigator.clipboard.writeText(apiKey);
-    $('#copy').textContent = 'Copied';
-  } catch {
-    $('#copy').textContent = 'Press Ctrl+C';
   }
 });
 
@@ -90,7 +78,7 @@ function openUpgrade(plan) {
   chosenTier = plan.id;
   $('#upgrade-tier').textContent = plan.label;
   $('#upgrade').hidden = false;
-  say('#upgrade-msg', apiKey ? '' : 'Need a key first? Create a free one above, then come back.');
+  say('#upgrade-msg', 'Paste the API key from your verification page. No key yet? Create a free one above first.');
   $('#upgrade').scrollIntoView({ behavior: 'smooth' });
 }
 
