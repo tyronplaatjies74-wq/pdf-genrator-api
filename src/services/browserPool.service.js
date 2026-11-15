@@ -2,6 +2,7 @@ import puppeteer from 'puppeteer';
 import { env } from '../config/env.js';
 import { HttpError } from '../utils/httpError.js';
 import { logger } from '../utils/logger.js';
+import { guardPage } from './urlGuard.service.js';
 
 const entries = [];
 const waiters = [];
@@ -84,7 +85,7 @@ function pick() {
   return pool.reduce((a, b) => (a.active <= b.active ? a : b));
 }
 
-/** Runs fn(page) in a fresh tab with a hard timeout, then always closes the tab. */
+/** Runs fn(page) in a fresh, locked-down tab with a hard timeout, then always closes the tab. */
 export async function withPage(fn) {
   await acquireSlot();
   let entry;
@@ -95,6 +96,7 @@ export async function withPage(fn) {
     entry.active++;
     entry.uses++;
     page = await entry.browser.newPage();
+    await guardPage(page); // JS off + only public http(s) requests allowed
     const timeout = new Promise((_, reject) => {
       timer = setTimeout(() => reject(new HttpError(504, 'render_timeout', 'Render timed out')), env.RENDER_TIMEOUT_MS);
     });
