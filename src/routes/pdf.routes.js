@@ -4,6 +4,7 @@ import { validate } from '../middleware/validate.middleware.js';
 import { quota } from '../middleware/quota.middleware.js';
 import { withPage } from '../services/browserPool.service.js';
 import { refund } from '../services/usage.service.js';
+import { assertPublicUrl } from '../services/urlGuard.service.js';
 import { TIERS } from '../config/tiers.js';
 
 const router = Router();
@@ -35,6 +36,7 @@ router.post('/generate', validate(generateSchema), quota, async (req, res, next)
   const tier = TIERS[req.client.tier] ?? TIERS.free;
   try {
     const { html, url, options = {} } = req.body;
+    if (!html) await assertPublicUrl(url); // 400 for private/internal/non-http URLs, before any rendering
 
     const pdf = await withPage(async (page) => {
       if (html) {
