@@ -2,7 +2,7 @@ import { Router } from 'express';
 import express from 'express';
 import { auth } from '../middleware/auth.middleware.js';
 import { perIpLimit } from '../middleware/rateLimit.middleware.js';
-import { validate, signupSchema, checkoutSchema } from '../middleware/validate.middleware.js';
+import { validate, signupSchema, checkoutSchema, verifySchema } from '../middleware/validate.middleware.js';
 import { findByEmail, createPendingVerification, verifyTokenAndCreateKey } from '../services/keys.service.js';
 import { sendVerificationEmail } from '../services/email.service.js';
 import { createCheckoutSession, constructEvent, handleEvent } from '../services/billing.service.js';
@@ -34,13 +34,12 @@ accountRouter.post('/signup', perIpLimit(5), validate(signupSchema), async (req,
   }
 });
 
-// Step 2: Verify magic link token and finally issue the API key
-accountRouter.get('/verify', (req, res, next) => {
+// Step 2: the verify page calls this when the person clicks "Reveal my API key".
+// It is a POST (not a GET link) so email scanners that pre-open links cannot use up the token.
+accountRouter.post('/verify', perIpLimit(10), validate(verifySchema), (req, res, next) => {
   try {
-    const { token } = req.query;
-    if (!token) throw new HttpError(400, 'missing_token', 'Verification token is required.');
-
-    const { key, tier } = verifyTokenAndCreateKey(token);
+    const { key, tier } = verifyTokenAndCreateKey(req.body.token);
+    res.set('Cache-Control', 'no-store');
     res.status(200).json({ 
       apiKey: key, 
       tier, 
