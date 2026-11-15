@@ -22,3 +22,8 @@ export const signupSchema = z.object({
 export const checkoutSchema = z.object({
   tier: z.string().min(1, 'Tier is required').max(32),
 });
+
+// The emailed verification token is 64 hex characters.
+export const verifySchema = z.object({
+  token: z.string().regex(/^[a-f0-9]{64}$/, 'Invalid verification token'),
+});
