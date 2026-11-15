@@ -1,7 +1,10 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { validate } from '../middleware/validate.middleware.js';
+import { quota } from '../middleware/quota.middleware.js';
 import { withPage } from '../services/browserPool.service.js';
+import { refund } from '../services/usage.service.js';
+import { TIERS } from '../config/tiers.js';
 
 const router = Router();
 
@@ -18,7 +21,18 @@ const generateSchema = z
   })
   .refine((d) => d.html || d.url, { message: 'Provide html or url' });
 
-router.post('/generate', validate(generateSchema), async (req, res, next) => {
+// Free-tier footer. It uses Chromium's footer template, which sits outside the page,
+// so customer HTML/CSS can't hide or restyle it. The bottom margin leaves room for it.
+const FREE_TIER_PDF_OPTIONS = {
+  displayHeaderFooter: true,
+  headerTemplate: '<span></span>',
+  footerTemplate:
+    '<div style="width:100%;font-size:9px;font-family:sans-serif;color:#777;text-align:center;">Made with PDF API · Free plan</div>',
+  margin: { bottom: '18mm' },
+};
+
+router.post('/generate', validate(generateSchema), quota, async (req, res, next) => {
+  const tier = TIERS[req.client.tier] ?? TIERS.free;
   try {
     const { html, url, options = {} } = req.body;
 
@@ -32,6 +46,7 @@ router.post('/generate', validate(generateSchema), async (req, res, next) => {
         format: options.format || 'A4',
         landscape: options.landscape || false,
         printBackground: true,
+        ...(tier.watermark ? FREE_TIER_PDF_OPTIONS : {}),
       });
     });
 
@@ -41,6 +56,7 @@ router.post('/generate', validate(generateSchema), async (req, res, next) => {
     });
     res.send(Buffer.from(pdf));
   } catch (err) {
+    refund(req.client.id, req.quotaPeriod); // failed renders don't cost the customer quota
     next(err);
   }
 });
