@@ -1,29 +1,17 @@
 import { Router } from 'express';
-import { z } from 'zod';
 import { validate } from '../middleware/validate.middleware.js';
 import { quota } from '../middleware/quota.middleware.js';
 import { withPage } from '../services/browserPool.service.js';
 import { refund } from '../services/usage.service.js';
 import { assertPublicUrl } from '../services/urlGuard.service.js';
+import { generateRequestSchema } from '../services/templateData.service.js';
+import { renderTemplate } from '../services/templateRender.service.js';
 import { TIERS } from '../config/tiers.js';
 
 const router = Router();
 
-const generateSchema = z
-  .object({
-    html: z.string().optional(),
-    url: z.string().url('Invalid URL provided').optional(),
-    options: z
-      .object({
-        format: z.string().optional(),
-        landscape: z.boolean().optional(),
-      })
-      .optional(),
-  })
-  .refine((d) => d.html || d.url, { message: 'Provide html or url' });
-
-// Free-tier footer. It uses Chromium's footer template, which sits outside the page,
-// so customer HTML/CSS can't hide or restyle it. The bottom margin leaves room for it.
+// Free-tier footer for raw html/url renders. It uses Chromium's footer template, which sits
+// outside the page, so customer HTML/CSS can't hide or restyle it. The bottom margin leaves room for it.
 const FREE_TIER_PDF_OPTIONS = {
   displayHeaderFooter: true,
   headerTemplate: '<span></span>',
@@ -32,13 +20,19 @@ const FREE_TIER_PDF_OPTIONS = {
   margin: { bottom: '18mm' },
 };
 
-router.post('/generate', validate(generateSchema), quota, async (req, res, next) => {
+// Body: exactly one of { html }, { url }, or { template, data } - see generateRequestSchema.
+router.post('/generate', validate(generateRequestSchema), quota, async (req, res, next) => {
   const tier = TIERS[req.client.tier] ?? TIERS.free;
   try {
-    const { html, url, options = {} } = req.body;
-    if (!html) await assertPublicUrl(url); // 400 for private/internal/non-http URLs, before any rendering
+    const { html, url, template, context, options = {} } = req.body;
+    if (url) await assertPublicUrl(url); // 400 for private/internal/non-http URLs, before any rendering
 
     const pdf = await withPage(async (page) => {
+      if (template) {
+        // Built-in templates: our own HTML, so no network is needed. The page size and margins come from the template.
+        await page.setContent(renderTemplate(template, context, { watermark: tier.watermark }), { waitUntil: 'load', timeout: 30000 });
+        return page.pdf({ printBackground: true, preferCSSPageSize: true });
+      }
       if (html) {
         await page.setContent(html, { waitUntil: 'networkidle0', timeout: 30000 });
       } else {
@@ -54,7 +48,7 @@ router.post('/generate', validate(generateSchema), quota, async (req, res, next)
 
     res.set({
       'Content-Type': 'application/pdf',
-      'Content-Disposition': 'attachment; filename="document.pdf"',
+      'Content-Disposition': `attachment; filename="${template || 'document'}.pdf"`,
     });
     res.send(Buffer.from(pdf));
   } catch (err) {
