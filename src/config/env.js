@@ -11,6 +11,12 @@ export const env = {
   // Public address of this service, used to build links in emails, e.g. https://api.yourdomain.co.za
   APP_URL: (e.APP_URL || '').replace(/\/+$/, ''),
 
+  // Email (Resend). Without RESEND_API_KEY, development just prints the verification link in the log.
+  RESEND_API_KEY: e.RESEND_API_KEY || '',
+  EMAIL_FROM: e.EMAIL_FROM || '',            // e.g. PDF API <noreply@yourdomain.co.za>  (testing: PDF API <onboarding@resend.dev>)
+  EMAIL_REPLY_TO: e.EMAIL_REPLY_TO || '',    // optional, e.g. support@yourdomain.co.za
+  EMAIL_DAILY_LIMIT: int(e.EMAIL_DAILY_LIMIT, 90), // Resend's free plan allows 100 a day
+
   CHROME_PATH: e.CHROME_PATH || undefined,
   CHROME_NO_SANDBOX: bool(e.CHROME_NO_SANDBOX, false),
   BROWSER_POOL_SIZE: int(e.BROWSER_POOL_SIZE, 2),
@@ -32,11 +38,21 @@ export const env = {
 
 export function validateEnv() {
   const errors = [];
-  for (const k of ['PORT', 'BROWSER_POOL_SIZE', 'BROWSER_RECYCLE_AFTER', 'MAX_CONCURRENT_RENDERS', 'RENDER_TIMEOUT_MS', 'QUEUE_TIMEOUT_MS']) {
+  for (const k of ['PORT', 'BROWSER_POOL_SIZE', 'BROWSER_RECYCLE_AFTER', 'MAX_CONCURRENT_RENDERS', 'RENDER_TIMEOUT_MS', 'QUEUE_TIMEOUT_MS', 'EMAIL_DAILY_LIMIT']) {
     if (!Number.isInteger(env[k]) || env[k] <= 0) errors.push(`${k} must be a positive integer`);
   }
   if (env.NODE_ENV === 'production' && !env.APP_URL) {
     errors.push('APP_URL is required in production (it is used in verification emails), e.g. https://api.yourdomain.co.za');
+  }
+  if (env.NODE_ENV === 'production' && !env.RESEND_API_KEY) {
+    errors.push('RESEND_API_KEY is required in production (signup sends a verification email)');
+  }
+  if ((env.NODE_ENV === 'production' || env.RESEND_API_KEY) && !env.EMAIL_FROM) {
+    errors.push('EMAIL_FROM is required when sending email, e.g. PDF API <noreply@yourdomain.co.za>');
+  }
+  for (const k of ['EMAIL_FROM', 'EMAIL_REPLY_TO']) {
+    const v = env[k];
+    if (v && !/^([^<>\r\n]+<[^<>\s@]+@[^<>\s@]+>|[^<>\s@]+@[^<>\s@]+)$/.test(v)) errors.push(`${k} must look like name@domain.com or Name <name@domain.com>`);
   }
   if (env.STRIPE_SECRET_KEY) {
     if (!env.STRIPE_WEBHOOK_SECRET) errors.push('STRIPE_WEBHOOK_SECRET is required when STRIPE_SECRET_KEY is set');
